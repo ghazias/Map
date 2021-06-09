@@ -1,0 +1,5 @@
+*.o
+catch.hpp
+test_main
+.vscode/**
+.*.swp
