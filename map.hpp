@@ -21,7 +21,7 @@ class Map {
   V& operator[](const K& key);          // access operator
 
   // member functions
-  void add(const std::pair<K, V> element);
+  void add(const std::pair<const K, V>& element);
   bool contains(const K& key) const;
   V& get(const K& key);
   // get() needs a const overload?
@@ -43,7 +43,7 @@ class Map {
   Node* copy(Node* parent, Node* current);
   Node* search(const K& key) const;
   Node* search_impl(Node* current, const K& key) const;
-  void add_impl(Node* current, const std::pair<K, V> element);
+  void add_impl(Node* current, const std::pair<const K, V>& element);
   void remove_impl(Node* current, const K& key);
 
   Node* find_min(Node* current);
@@ -52,6 +52,15 @@ class Map {
   std::size_t size_impl(Node* root) const;
 };
 }  // namespace dsc
+
+template <typename K, typename V>
+std::size_t dsc::Map<K, V>::size_impl(Node* current) const {
+  if (current == nullptr) {
+    return 0;
+  }
+
+  return size_impl(current->left) + size_impl(current->right) + 1;
+}
 
 template <typename K, typename V>
 dsc::Map<K, V>::Map(const Map& original)
@@ -108,7 +117,7 @@ dsc::Map<K, V>& dsc::Map<K, V>::operator=(const Map<K, V>& original) {
 
 template <typename K, typename V>
 dsc::Map<K, V>& dsc::Map<K, V>::operator=(Map<K, V>&& original) {
-  if (this != original) {
+  if (this != &original) {
     destroy(root_);
     root_ = original.root_;
     original.root_ = nullptr;
@@ -123,17 +132,40 @@ V& dsc::Map<K, V>::operator[](const K& key) {
 }
 
 template <typename K, typename V>
-void dsc::Map<K, V>::add(const std::pair<K, V> element) {
+auto dsc::Map<K, V>::search(const K& key) const -> Node* {
+  return search_impl(root_, key);
+}
+
+template <typename K, typename V>
+auto dsc::Map<K, V>::search_impl(Node* current, const K& key) const -> Node* {
+  if (!current) {
+    return nullptr;
+  }
+
+  if (current->element.first == key) {
+    return current;
+  }
+
+  if (current->element.first < key) {
+    return search_impl(current->right, key);
+  }
+
+  return search_impl(current->left, key);
+}
+
+template <typename K, typename V>
+void dsc::Map<K, V>::add(const std::pair<const K, V>& element) {
   if (root_ == nullptr) {
-    root_ = new Node { element, nullptr, nullptr, nullptr };
+    root_ = new Node{element, nullptr, nullptr, nullptr};
   } else {
     add_impl(root_, element);
   }
 }
 
 template <typename K, typename V>
-void dsc::Map<K, V>::add_impl(Node* current, const std::pair<K, V> element) {
-  if (element < current->element) {  // would be left child?
+void dsc::Map<K, V>::add_impl(Node* current,
+                              const std::pair<const K, V>& element) {
+  if (element.first < current->element.first) {  // would be left child?
     if (current->left == nullptr) {
       current->left = new Node{element, current, nullptr, nullptr};
       return;
@@ -171,10 +203,10 @@ void dsc::Map<K, V>::remove_impl(Node* current, const K& key) {
     return;
   }
   if (key < current->element.first) {
-    remove_impl(current->left, element);  // recurse left
+    remove_impl(current->left, key);  // recurse left
   }
   if (key > current->element.first) {
-    remove_impl(current->right, element);  // recurse right
+    remove_impl(current->right, key);  // recurse right
   }
 
   if (key == current->element.first) {
